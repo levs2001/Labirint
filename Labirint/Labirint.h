@@ -8,6 +8,16 @@ public:
 	void Draw(HDC hdc) const;
 	void Change(ECellType mode, const ClassXY& clCoord);
 	void MakeRandom();
+	void MakeNewWay();
+	
+	ECellType GetCellType(size_t i, size_t j) {
+		return labM[i][j];
+	}
+
+	size_t GetSize() {
+		return sizeM;
+	}
+
 	~Labirint();
 
 private:
@@ -17,5 +27,5 @@ private:
 	ClassXY begin;
 	ClassXY end;
 
-	ClassXY GetMatrixCoord(const ClassXY& coord) const;
+	ClassXY GetMatrixCoord(const ClassXY& coord, bool& notInMatrix) const;
 };

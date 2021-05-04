@@ -1,6 +1,15 @@
 #include "Labirint.h"
 #include "LabWindow.h"
 #include <random>
+#include <queue>
+#include <iostream>
+
+
+struct WayNode {
+	bool visited;
+	size_t steps;
+	ClassXY coord;
+};
 
 Labirint::Labirint(size_t sizeM, size_t cellSize) : sizeM(sizeM), cellSize(cellSize) {
 	labM = new ECellType * [sizeM];
@@ -9,6 +18,15 @@ Labirint::Labirint(size_t sizeM, size_t cellSize) : sizeM(sizeM), cellSize(cellS
 		for (size_t j = 0; j < sizeM; j++)
 			labM[i][j] = ECellType::NOWALL;
 	}
+	begin = ClassXY(-1, -1);
+	end = ClassXY(-1, -1);
+}
+
+static bool IsOutOfMatrix(ClassXY cell, size_t sizeM) {
+	if (cell.x > sizeM || cell.y > sizeM || cell.x < 0 || cell.y < 0) {
+		return true;
+	}
+	return false;
 }
 
 void Labirint::Change(ECellType mode, const ClassXY& clCoord) {
@@ -16,23 +34,91 @@ void Labirint::Change(ECellType mode, const ClassXY& clCoord) {
 		return;
 
 	ClassXY mCoord;
-	try {
-		mCoord = GetMatrixCoord(clCoord);
-	}
-	catch (std::string err) {
+	bool notInMatrix = false;
+	mCoord = GetMatrixCoord(clCoord, notInMatrix);
+	if (notInMatrix)
 		return;
-	}
 
 	labM[mCoord.y][mCoord.x] = mode;
+
+	bool newWay = false;
 	if (mode == ECellType::BEGIN && !(mCoord == begin)) {
-		labM[begin.y][begin.x] = ECellType::NOWALL;
+		if (!IsOutOfMatrix(begin, sizeM))
+			labM[begin.y][begin.x] = ECellType::NOWALL;
 		begin = mCoord;
+		newWay = true;
 	}
 	else if (mode == ECellType::END && !(mCoord == begin)) {
-		labM[end.y][end.x] = ECellType::NOWALL;
+		if (!IsOutOfMatrix(end, sizeM))
+			labM[end.y][end.x] = ECellType::NOWALL;
 		end = mCoord;
+		newWay = true;
+	}
+	if (newWay && !IsOutOfMatrix(begin, sizeM) && !IsOutOfMatrix(end, sizeM)) {
+		MakeNewWay();
+	}
+}
+
+static void PushNearCells(WayNode& wNode, std::queue<WayNode*>& plan, WayNode** wayM, Labirint* lab) {
+	if (!wNode.visited) {
+		if (wNode.coord.y - 1 >= 0 && !wayM[wNode.coord.y - 1][wNode.coord.x].visited 
+			&& (lab->GetCellType(wNode.coord.y - 1, wNode.coord.x) == ECellType::NOWALL || lab->GetCellType(wNode.coord.y - 1, wNode.coord.x) == ECellType::END)) {
+			plan.push(&wayM[wNode.coord.y - 1][wNode.coord.x]);
+			plan.back()->steps = wNode.steps + 1;
+		}
+		if (wNode.coord.x + 1 < lab->GetSize() && !wayM[wNode.coord.y][wNode.coord.x + 1].visited
+			&& (lab->GetCellType(wNode.coord.y, wNode.coord.x + 1) == ECellType::NOWALL || lab->GetCellType(wNode.coord.y, wNode.coord.x + 1) == ECellType::END)) {
+			plan.push(&wayM[wNode.coord.y][wNode.coord.x + 1]);
+			plan.back()->steps = wNode.steps + 1;
+		}
+		if (wNode.coord.y + 1 < lab->GetSize() && !wayM[wNode.coord.y + 1][wNode.coord.x].visited
+			&&(lab->GetCellType(wNode.coord.y + 1, wNode.coord.x) == ECellType::NOWALL || lab->GetCellType(wNode.coord.y + 1, wNode.coord.x) == ECellType::END)) {
+			plan.push(&wayM[wNode.coord.y + 1][wNode.coord.x]);
+			plan.back()->steps = wNode.steps + 1;
+		}
+		if (wNode.coord.x - 1 >= 0 && !wayM[wNode.coord.y][wNode.coord.x - 1].visited &&
+			(lab->GetCellType(wNode.coord.y, wNode.coord.x - 1) == ECellType::NOWALL || lab->GetCellType(wNode.coord.y, wNode.coord.x - 1) == ECellType::END)) {
+			plan.push(&wayM[wNode.coord.y][wNode.coord.x - 1]);
+			plan.back()->steps = wNode.steps + 1;
+		}
+		wNode.visited = true;
+	}
+}
+
+static void PrintWays(WayNode** wayM, size_t sizeM) {
+	for (size_t i = 0; i < sizeM; i++) {
+		for (size_t j = 0; j < sizeM; j++) {
+			std::cout << wayM[i][j].steps << "\t";
+		}
+		std::cout << std::endl;
+	}
+}
+
+void Labirint::MakeNewWay() {
+	WayNode** wayM = new WayNode * [sizeM];
+	for (size_t i = 0; i < sizeM; i++) {
+		wayM[i] = new WayNode[sizeM];
+		for (size_t j = 0; j < sizeM; j++) {
+			wayM[i][j].steps = 0;
+			wayM[i][j].visited = false;
+			wayM[i][j].coord = ClassXY(j, i);
+		}
 	}
 
+	std::queue<WayNode*> plan;
+	PushNearCells(wayM[begin.y][begin.x], plan, wayM, this);
+
+	while (!plan.size() == 0) {
+		WayNode& wayNode = *plan.front();
+		plan.pop();
+		PushNearCells(wayNode, plan, wayM, this);
+	}
+
+	PrintWays(wayM, sizeM);
+
+	for (size_t i = 0; i < sizeM; i++)
+		delete[] wayM[i];
+	delete[] wayM;
 }
 
 void Labirint::MakeRandom() {
@@ -49,13 +135,14 @@ void Labirint::MakeRandom() {
 	}
 }
 
-ClassXY Labirint::GetMatrixCoord(const ClassXY& coord) const {
+ClassXY Labirint::GetMatrixCoord(const ClassXY& coord, bool& notInMatrix) const {
+	notInMatrix = false;
 	ClassXY mCoord;
 	mCoord.x = coord.x / cellSize;
 	mCoord.y = coord.y / cellSize;
 
-	if (mCoord.x > sizeM || mCoord.y > sizeM) {
-		throw (std::string)"Not in labirint";
+	if (IsOutOfMatrix(mCoord, sizeM)) {
+		notInMatrix = true;
 	}
 
 	return mCoord;

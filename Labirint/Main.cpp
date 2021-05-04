@@ -2,7 +2,7 @@
 #include "LabWindow.h"
 #include "Drawing.h"
 
-#define CELL_SIZE 100
+#define CELL_SIZE 200
 
 char szClassName[] = "Window1";
 HWND hWnd;
@@ -13,7 +13,7 @@ int createMyWindow(HINSTANCE hInstance, int nCmdShow);
 
 LabWindow* labWindow;
 
-int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPSTR lpszCmdParam, _In_ int nCmdShow)
+int /*WINAPI WinMain*/ main(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPSTR lpszCmdParam, _In_ int nCmdShow)
 {
 	MSG msg;
 	labWindow = new LabWindow();
