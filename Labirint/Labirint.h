@@ -1,6 +1,20 @@
 #pragma once
 #include "LabWindow.h"
 
+struct WayNode {
+	WayNode() {}
+	WayNode(size_t steps) {
+		this->steps = steps;
+		visited = false;
+		coord = { -1, -1 };
+	};
+
+	
+	bool visited;
+	size_t steps;
+	ClassXY coord;
+};
+
 
 class Labirint {
 public:
@@ -8,8 +22,7 @@ public:
 	void Draw(HDC hdc) const;
 	void Change(ECellType mode, const ClassXY& clCoord);
 	void MakeRandom();
-	void MakeNewWay();
-	
+
 	ECellType GetCellType(size_t i, size_t j) {
 		return labM[i][j];
 	}
@@ -22,10 +35,15 @@ public:
 
 private:
 	ECellType** labM;
+	std::vector<ClassXY> way;
 	size_t sizeM;
 	size_t cellSize;
 	ClassXY begin;
 	ClassXY end;
 
+	void MakeNewWay();
+	void PointWay(WayNode** wayM);
+	void CleanWay();
 	ClassXY GetMatrixCoord(const ClassXY& coord, bool& notInMatrix) const;
+
 };

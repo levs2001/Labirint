@@ -31,6 +31,11 @@ public:
 	friend bool operator== (const ClassXY& c1, const ClassXY& c2) {
 		return (c1.x == c2.x && c1.y == c2.y);
 	}
+
+	friend bool operator!= (const ClassXY& c1, const ClassXY& c2) {
+		return (c1.x != c2.x || c1.y != c2.y);
+	}
+
 };
 
 class Button {

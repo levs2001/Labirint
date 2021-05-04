@@ -5,11 +5,6 @@
 #include <iostream>
 
 
-struct WayNode {
-	bool visited;
-	size_t steps;
-	ClassXY coord;
-};
 
 Labirint::Labirint(size_t sizeM, size_t cellSize) : sizeM(sizeM), cellSize(cellSize) {
 	labM = new ECellType * [sizeM];
@@ -23,7 +18,14 @@ Labirint::Labirint(size_t sizeM, size_t cellSize) : sizeM(sizeM), cellSize(cellS
 }
 
 static bool IsOutOfMatrix(ClassXY cell, size_t sizeM) {
-	if (cell.x > sizeM || cell.y > sizeM || cell.x < 0 || cell.y < 0) {
+	if (cell.x >= sizeM || cell.y >= sizeM || cell.x < 0 || cell.y < 0) {
+		return true;
+	}
+	return false;
+}
+
+static bool IsOutOfMatrix(size_t x, size_t y, size_t sizeM) {
+	if (x >= sizeM || y >= sizeM || x < 0 || y < 0) {
 		return true;
 	}
 	return false;
@@ -38,30 +40,31 @@ void Labirint::Change(ECellType mode, const ClassXY& clCoord) {
 	mCoord = GetMatrixCoord(clCoord, notInMatrix);
 	if (notInMatrix)
 		return;
+	if (labM[mCoord.y][mCoord.x] != ECellType::WALL || mode == ECellType::NOWALL) {
+		labM[mCoord.y][mCoord.x] = mode;
 
-	labM[mCoord.y][mCoord.x] = mode;
-
-	bool newWay = false;
-	if (mode == ECellType::BEGIN && !(mCoord == begin)) {
-		if (!IsOutOfMatrix(begin, sizeM))
-			labM[begin.y][begin.x] = ECellType::NOWALL;
-		begin = mCoord;
-		newWay = true;
-	}
-	else if (mode == ECellType::END && !(mCoord == begin)) {
-		if (!IsOutOfMatrix(end, sizeM))
-			labM[end.y][end.x] = ECellType::NOWALL;
-		end = mCoord;
-		newWay = true;
-	}
-	if (newWay && !IsOutOfMatrix(begin, sizeM) && !IsOutOfMatrix(end, sizeM)) {
-		MakeNewWay();
+		bool newWay = false;
+		if (mode == ECellType::BEGIN && !(mCoord == begin)) {
+			if (!IsOutOfMatrix(begin, sizeM))
+				labM[begin.y][begin.x] = ECellType::NOWALL;
+			begin = mCoord;
+			newWay = true;
+		}
+		else if (mode == ECellType::END && !(mCoord == begin)) {
+			if (!IsOutOfMatrix(end, sizeM))
+				labM[end.y][end.x] = ECellType::NOWALL;
+			end = mCoord;
+			newWay = true;
+		}
+		if (newWay && !IsOutOfMatrix(begin, sizeM) && !IsOutOfMatrix(end, sizeM)) {
+			MakeNewWay();
+		}
 	}
 }
 
 static void PushNearCells(WayNode& wNode, std::queue<WayNode*>& plan, WayNode** wayM, Labirint* lab) {
 	if (!wNode.visited) {
-		if (wNode.coord.y - 1 >= 0 && !wayM[wNode.coord.y - 1][wNode.coord.x].visited 
+		if (wNode.coord.y - 1 >= 0 && !wayM[wNode.coord.y - 1][wNode.coord.x].visited
 			&& (lab->GetCellType(wNode.coord.y - 1, wNode.coord.x) == ECellType::NOWALL || lab->GetCellType(wNode.coord.y - 1, wNode.coord.x) == ECellType::END)) {
 			plan.push(&wayM[wNode.coord.y - 1][wNode.coord.x]);
 			plan.back()->steps = wNode.steps + 1;
@@ -72,7 +75,7 @@ static void PushNearCells(WayNode& wNode, std::queue<WayNode*>& plan, WayNode** 
 			plan.back()->steps = wNode.steps + 1;
 		}
 		if (wNode.coord.y + 1 < lab->GetSize() && !wayM[wNode.coord.y + 1][wNode.coord.x].visited
-			&&(lab->GetCellType(wNode.coord.y + 1, wNode.coord.x) == ECellType::NOWALL || lab->GetCellType(wNode.coord.y + 1, wNode.coord.x) == ECellType::END)) {
+			&& (lab->GetCellType(wNode.coord.y + 1, wNode.coord.x) == ECellType::NOWALL || lab->GetCellType(wNode.coord.y + 1, wNode.coord.x) == ECellType::END)) {
 			plan.push(&wayM[wNode.coord.y + 1][wNode.coord.x]);
 			plan.back()->steps = wNode.steps + 1;
 		}
@@ -94,7 +97,53 @@ static void PrintWays(WayNode** wayM, size_t sizeM) {
 	}
 }
 
+static void SetNearestIfNear(WayNode* checkingNode, WayNode*& nearest, const ClassXY& destination) {
+	if (checkingNode->steps == 0) {
+		if (checkingNode->coord == destination) {
+			throw (std::string)"Arrived to destination";
+		}
+	}
+	else if (checkingNode->steps < nearest->steps) {
+		nearest = checkingNode;
+	}
+}
+
+static ClassXY FindNearest(const ClassXY& begin, const ClassXY& destination, WayNode** wayM, size_t sizeM, bool& arrived) {
+	WayNode* nearest = &WayNode(UINT32_MAX);
+
+	try {
+		if (!IsOutOfMatrix(begin.x, begin.y - 1, sizeM))
+			SetNearestIfNear(&wayM[begin.y - 1][begin.x], nearest, destination);
+		if (!IsOutOfMatrix(begin.x + 1, begin.y, sizeM))
+			SetNearestIfNear(&wayM[begin.y][begin.x + 1], nearest, destination);
+		if (!IsOutOfMatrix(begin.x, begin.y + 1, sizeM))
+			SetNearestIfNear(&wayM[begin.y + 1][begin.x], nearest, destination);
+		if (!IsOutOfMatrix(begin.x - 1, begin.y, sizeM))
+			SetNearestIfNear(&wayM[begin.y][begin.x - 1], nearest, destination);
+	}
+	catch (std::string arrivedStr) {
+		arrived = true;
+		return nearest->coord;
+	}
+
+	return nearest->coord;
+}
+
+void Labirint::PointWay(WayNode** wayM) {
+	bool arrived = false;
+	ClassXY nearest = FindNearest(end, begin, wayM, sizeM, arrived);
+	do {
+		if (!arrived) {
+			labM[nearest.y][nearest.x] = ECellType::WAY;
+			way.push_back(nearest);
+		}
+		nearest = FindNearest(nearest, begin, wayM, sizeM, arrived);
+	} while (!arrived);
+}
+
 void Labirint::MakeNewWay() {
+	CleanWay();
+
 	WayNode** wayM = new WayNode * [sizeM];
 	for (size_t i = 0; i < sizeM; i++) {
 		wayM[i] = new WayNode[sizeM];
@@ -115,13 +164,25 @@ void Labirint::MakeNewWay() {
 	}
 
 	PrintWays(wayM, sizeM);
+	PointWay(wayM);
 
 	for (size_t i = 0; i < sizeM; i++)
 		delete[] wayM[i];
 	delete[] wayM;
 }
 
+void Labirint::CleanWay() {
+	for (ClassXY& cell : way) {
+		if(labM[cell.y][cell.x] == ECellType::WAY)
+		labM[cell.y][cell.x] = ECellType::NOWALL;
+	}
+	way.clear();
+}
+
 void Labirint::MakeRandom() {
+	begin = ClassXY(-1, -1);
+	end = ClassXY(-1, -1);
+
 	std::random_device rd;
 	std::mt19937 gen(rd());
 
