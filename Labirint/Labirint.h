@@ -2,7 +2,7 @@
 #include "LabWindow.h"
 
 struct WayNode {
-	WayNode() {}
+	WayNode() : visited(false), steps(0) {}
 	WayNode(size_t steps) {
 		this->steps = steps;
 		visited = false;

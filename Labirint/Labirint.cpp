@@ -4,7 +4,12 @@
 #include <queue>
 #include <iostream>
 
-
+static bool IsOutOfMatrix(ClassXY cell, size_t sizeM);
+static bool IsOutOfMatrix(size_t x, size_t y, size_t sizeM);
+static void PushNearCells(WayNode& wNode, std::queue<WayNode*>& plan, WayNode** wayM, Labirint* lab);
+static void PrintWays(WayNode** wayM, size_t sizeM);
+static void SetNearestIfNear(WayNode* checkingNode, WayNode*& nearest, const ClassXY& destination);
+static ClassXY FindNearest(const ClassXY& begin, const ClassXY& destination, WayNode** wayM, size_t sizeM, bool& arrived);
 
 Labirint::Labirint(size_t sizeM, size_t cellSize) : sizeM(sizeM), cellSize(cellSize) {
 	labM = new ECellType * [sizeM];
@@ -15,20 +20,6 @@ Labirint::Labirint(size_t sizeM, size_t cellSize) : sizeM(sizeM), cellSize(cellS
 	}
 	begin = ClassXY(-1, -1);
 	end = ClassXY(-1, -1);
-}
-
-static bool IsOutOfMatrix(ClassXY cell, size_t sizeM) {
-	if (cell.x >= sizeM || cell.y >= sizeM || cell.x < 0 || cell.y < 0) {
-		return true;
-	}
-	return false;
-}
-
-static bool IsOutOfMatrix(size_t x, size_t y, size_t sizeM) {
-	if (x >= sizeM || y >= sizeM || x < 0 || y < 0) {
-		return true;
-	}
-	return false;
 }
 
 void Labirint::Change(ECellType mode, const ClassXY& clCoord) {
@@ -60,6 +51,111 @@ void Labirint::Change(ECellType mode, const ClassXY& clCoord) {
 			MakeNewWay();
 		}
 	}
+}
+
+void Labirint::PointWay(WayNode** wayM) {
+	//For case without opportunity to make way
+	if (wayM[end.y][end.x].steps == 0)
+		return;
+
+	bool arrived = false;
+	ClassXY nearest = FindNearest(end, begin, wayM, sizeM, arrived);
+	do {
+		if (!arrived) {
+			labM[nearest.y][nearest.x] = ECellType::WAY;
+			way.push_back(nearest);
+		}
+		nearest = FindNearest(nearest, begin, wayM, sizeM, arrived);
+	} while (!arrived);
+}
+
+void Labirint::MakeNewWay() {
+	CleanWay();
+
+	WayNode** wayM = new WayNode * [sizeM];
+	for (size_t i = 0; i < sizeM; i++) {
+		wayM[i] = new WayNode[sizeM];
+		for (size_t j = 0; j < sizeM; j++) {
+			wayM[i][j].steps = 0;
+			wayM[i][j].visited = false;
+			wayM[i][j].coord = ClassXY(j, i);
+		}
+	}
+
+	std::queue<WayNode*> plan;
+	PushNearCells(wayM[begin.y][begin.x], plan, wayM, this);
+
+	while (!plan.size() == 0) {
+		WayNode& wayNode = *plan.front();
+		plan.pop();
+		PushNearCells(wayNode, plan, wayM, this);
+	}
+
+	//PrintWays(wayM, sizeM);
+	PointWay(wayM);
+
+	for (size_t i = 0; i < sizeM; i++)
+		delete[] wayM[i];
+	delete[] wayM;
+}
+
+void Labirint::CleanWay() {
+	for (ClassXY& cell : way) {
+		if(labM[cell.y][cell.x] == ECellType::WAY)
+		labM[cell.y][cell.x] = ECellType::NOWALL;
+	}
+	way.clear();
+}
+
+void Labirint::MakeRandom() {
+	begin = ClassXY(-1, -1);
+	end = ClassXY(-1, -1);
+
+	std::random_device rd;
+	std::mt19937 gen(rd());
+
+	std::uniform_int_distribution<> randRow(1, 10);
+
+	for (size_t i = 0; i < sizeM; i++) {
+		for (size_t j = 0; j < sizeM; j++) {
+			size_t num = randRow(gen);
+			labM[i][j] = num < 9 ? ECellType::NOWALL : ECellType::WALL;
+		}
+	}
+}
+
+ClassXY Labirint::GetMatrixCoord(const ClassXY& coord, bool& notInMatrix) const {
+	notInMatrix = false;
+	ClassXY mCoord;
+	mCoord.x = coord.x / cellSize;
+	mCoord.y = coord.y / cellSize;
+
+	if (IsOutOfMatrix(mCoord, sizeM)) {
+		notInMatrix = true;
+	}
+
+	return mCoord;
+}
+
+Labirint::~Labirint() {
+	for (size_t i = 0; i < sizeM; i++)
+		delete[] labM[i];
+	delete[] labM;
+}
+
+
+static bool IsOutOfMatrix(ClassXY cell, size_t sizeM) {
+	if (cell.x >= sizeM || cell.y >= sizeM || cell.x < 0 || cell.y < 0) {
+		return true;
+	}
+	return false;
+}
+
+static bool IsOutOfMatrix(size_t x, size_t y, size_t sizeM) {
+	if (x >= sizeM || y >= sizeM || x < 0 || y < 0) {
+		return true;
+	}
+	return false;
 }
 
 static void PushNearCells(WayNode& wNode, std::queue<WayNode*>& plan, WayNode** wayM, Labirint* lab) {
@@ -127,90 +223,4 @@ static ClassXY FindNearest(const ClassXY& begin, const ClassXY& destination, Way
 	}
 
 	return nearest->coord;
-}
-
-void Labirint::PointWay(WayNode** wayM) {
-	bool arrived = false;
-	ClassXY nearest = FindNearest(end, begin, wayM, sizeM, arrived);
-	do {
-		if (!arrived) {
-			labM[nearest.y][nearest.x] = ECellType::WAY;
-			way.push_back(nearest);
-		}
-		nearest = FindNearest(nearest, begin, wayM, sizeM, arrived);
-	} while (!arrived);
-}
-
-void Labirint::MakeNewWay() {
-	CleanWay();
-
-	WayNode** wayM = new WayNode * [sizeM];
-	for (size_t i = 0; i < sizeM; i++) {
-		wayM[i] = new WayNode[sizeM];
-		for (size_t j = 0; j < sizeM; j++) {
-			wayM[i][j].steps = 0;
-			wayM[i][j].visited = false;
-			wayM[i][j].coord = ClassXY(j, i);
-		}
-	}
-
-	std::queue<WayNode*> plan;
-	PushNearCells(wayM[begin.y][begin.x], plan, wayM, this);
-
-	while (!plan.size() == 0) {
-		WayNode& wayNode = *plan.front();
-		plan.pop();
-		PushNearCells(wayNode, plan, wayM, this);
-	}
-
-	PrintWays(wayM, sizeM);
-	PointWay(wayM);
-
-	for (size_t i = 0; i < sizeM; i++)
-		delete[] wayM[i];
-	delete[] wayM;
-}
-
-void Labirint::CleanWay() {
-	for (ClassXY& cell : way) {
-		if(labM[cell.y][cell.x] == ECellType::WAY)
-		labM[cell.y][cell.x] = ECellType::NOWALL;
-	}
-	way.clear();
-}
-
-void Labirint::MakeRandom() {
-	begin = ClassXY(-1, -1);
-	end = ClassXY(-1, -1);
-
-	std::random_device rd;
-	std::mt19937 gen(rd());
-
-	std::uniform_int_distribution<> randRow(1, 10);
-
-	for (size_t i = 0; i < sizeM; i++) {
-		for (size_t j = 0; j < sizeM; j++) {
-			size_t num = randRow(gen);
-			labM[i][j] = num < 9 ? ECellType::NOWALL : ECellType::WALL;
-		}
-	}
-}
-
-ClassXY Labirint::GetMatrixCoord(const ClassXY& coord, bool& notInMatrix) const {
-	notInMatrix = false;
-	ClassXY mCoord;
-	mCoord.x = coord.x / cellSize;
-	mCoord.y = coord.y / cellSize;
-
-	if (IsOutOfMatrix(mCoord, sizeM)) {
-		notInMatrix = true;
-	}
-
-	return mCoord;
-}
-
-Labirint::~Labirint() {
-	for (size_t i = 0; i < sizeM; i++)
-		delete[] labM[i];
-	delete[] labM;
 }

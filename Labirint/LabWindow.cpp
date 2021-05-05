@@ -3,7 +3,7 @@
 
 void LabWindow::Init(size_t cellSize) {
 	size_t labSize = SCREEN_HEIGHT/cellSize;
-	cellSize = SCREEN_HEIGHT / labSize; //Чтобы всё было квадратным
+	cellSize = SCREEN_HEIGHT / labSize; //To make square cells and field
 	labirint = new Labirint(labSize, cellSize);
 
 	ClassXY butCoord(BUT_COORD_X, 0);
@@ -20,17 +20,20 @@ void LabWindow::Init(size_t cellSize) {
 }
 
 
-void LabWindow::Click(const ClassXY& clCoord) {
+bool LabWindow::Click(const ClassXY& clCoord) {
 	for (const Button& but : buts) {
 		if (but.CheckClick(clCoord)) {
 			mode = but.GetMode();
-			if (mode == ECellType::RAND)
+			if (mode == ECellType::RAND) {
 				labirint->MakeRandom();
-			return;
+				return REDRAW;
+			}
+			return NOT_REDRAW;
 		}
 	}
 
 	labirint->Change(mode, clCoord);
+	return REDRAW;
 }
 
 LabWindow::~LabWindow() {

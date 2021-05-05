@@ -3,7 +3,6 @@
 #include <Windows.h>
 #include <String>
 #include <Vector>
-//#include "Labirint.h"
 
 #define SCREEN_WIDTH 1000
 #define SCREEN_HEIGHT 900
@@ -11,6 +10,8 @@
 #define BUT_SIZE_X 100
 #define BUT_SIZE_Y 20
 #define BUT_COORD_X 900
+#define REDRAW true
+#define NOT_REDRAW false
 
 enum class ECellType {
 	NOWALL,
@@ -60,7 +61,7 @@ class LabWindow {
 public:
 	void Init(size_t cellSize);
 	void Draw(HDC hdc) const;
-	void Click(const ClassXY& clCoord);
+	bool Click(const ClassXY& clCoord);
 	~LabWindow();
 
 private:
